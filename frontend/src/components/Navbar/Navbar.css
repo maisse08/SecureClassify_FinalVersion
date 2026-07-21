@@ -1,0 +1,399 @@
+/* ============================================================
+   App Layout, Sidebar & Navbar — Dark Glassmorphism Theme
+   Matches the SecureClassify Login / Dashboard visual language.
+   ============================================================ */
+
+/* --- App Shell --- */
+.app-layout {
+    display: flex;
+    min-height: 100vh;
+    background: var(--body-gradient);
+}
+
+.main-content {
+    flex: 1;
+    display: flex;
+    flex-direction: column;
+    min-width: 0;
+}
+
+.content-body {
+    flex: 1;
+    padding: 0;
+    overflow-y: auto;
+}
+
+/* --- Sidebar --- */
+.sidebar {
+    width: 260px;
+    flex-shrink: 0;
+    display: flex;
+    flex-direction: column;
+    padding: 20px 16px;
+    transition: width 0.3s ease;
+}
+
+.sidebar.collapsed {
+    width: 80px;
+}
+
+.sidebar-header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: 0 8px 20px;
+    border-bottom: 1px solid var(--border-hairline);
+    margin-bottom: 16px;
+}
+
+.sidebar-logo {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+}
+
+.sidebar-logo .logo-icon {
+    color: #3bc4e9;
+}
+
+.sidebar-logo h2 {
+    font-size: 1.1rem;
+    font-weight: 700;
+    color: var(--text-main);
+    margin: 0;
+    white-space: nowrap;
+}
+
+.collapse-btn {
+    background: var(--surface-soft-3);
+    border: 1px solid var(--border-hairline);
+    color: var(--text-tertiary);
+    border-radius: 8px;
+    width: 30px;
+    height: 30px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    cursor: pointer;
+    transition: all 0.2s ease;
+}
+
+.collapse-btn:hover {
+    color: var(--text-main);
+    background: var(--surface-soft-2);
+}
+
+.sidebar-nav {
+    display: flex;
+    flex-direction: column;
+    gap: 4px;
+    flex: 1;
+}
+
+.admin-section {
+    margin-top: 18px;
+    display: flex;
+    flex-direction: column;
+    gap: 4px;
+}
+
+.section-label {
+    font-size: 0.65rem;
+    font-weight: 800;
+    letter-spacing: 1px;
+    text-transform: uppercase;
+    color: var(--text-disabled);
+    padding: 0 12px 6px;
+}
+
+.nav-link {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    padding: 11px 14px;
+    border-radius: 12px;
+    color: var(--text-tertiary);
+    text-decoration: none;
+    font-size: 0.9rem;
+    font-weight: 500;
+    transition: all 0.2s ease;
+}
+
+.nav-link:hover {
+    background: var(--surface-soft-3);
+    color: var(--text-main);
+}
+
+.nav-link.active {
+    background: linear-gradient(90deg, rgba(80, 119, 243, 0.18) 0%, rgba(59, 196, 233, 0.18) 100%);
+    color: var(--text-main);
+    border: 1px solid rgba(59, 196, 233, 0.25);
+}
+
+.nav-icon {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+}
+
+/* --- Collapsible "Référentiels" nav group --- */
+.nav-group {
+    display: flex;
+    flex-direction: column;
+}
+
+.nav-parent {
+    width: 100%;
+    background: none;
+    border: none;
+    cursor: pointer;
+    font-family: inherit;
+    justify-content: flex-start;
+}
+
+.nav-parent.expanded {
+    color: var(--text-main);
+}
+
+.nav-chevron {
+    margin-left: auto;
+    display: flex;
+    align-items: center;
+    transition: transform 0.2s ease;
+    color: var(--text-faint);
+}
+
+.nav-chevron.rotate {
+    transform: rotate(180deg);
+}
+
+.nav-submenu {
+    display: flex;
+    flex-direction: column;
+    gap: 2px;
+    margin: 2px 0 4px;
+    padding-left: 14px;
+    border-left: 1px solid var(--border-hairline);
+    margin-left: 20px;
+}
+
+.nav-link-sub {
+    padding: 8px 12px;
+    font-size: 0.85rem;
+}
+
+.sidebar-footer {
+    display: flex;
+    flex-direction: column;
+    gap: 4px;
+    margin-top: 16px;
+    padding-top: 16px;
+    border-top: 1px solid var(--border-hairline);
+}
+
+/* --- Navbar --- */
+.navbar {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: 14px 28px;
+    margin: 16px 16px 0;
+    border-radius: 18px;
+    position: relative;
+    z-index: 100;
+}
+
+.nav-left {
+    flex: 1;
+    max-width: 420px;
+}
+
+.search-box {
+    position: relative;
+    display: flex;
+    align-items: center;
+}
+
+.search-icon {
+    position: absolute;
+    left: 14px;
+    color: var(--text-faint);
+}
+
+.search-box input {
+    width: 100%;
+    height: 44px;
+    background: var(--surface-inset);
+    border: 1px solid var(--border-faint);
+    border-radius: 12px;
+    padding: 0 16px 0 44px;
+    color: var(--text-main);
+    font-size: 0.9rem;
+    transition: all 0.3s ease;
+}
+
+.search-box input::placeholder {
+    color: var(--text-faint);
+}
+
+.search-box input:focus {
+    outline: none;
+    border-color: #3b82f6;
+    box-shadow: 0 0 0 4px rgba(59, 130, 246, 0.1);
+}
+
+.nav-right {
+    display: flex;
+    align-items: center;
+    gap: 18px;
+}
+
+.nav-status {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    font-size: 0.8rem;
+    color: var(--text-tertiary);
+}
+
+.pulse-dot {
+    width: 8px;
+    height: 8px;
+    border-radius: 50%;
+    background: #10b981;
+    box-shadow: 0 0 0 0 rgba(16, 185, 129, 0.6);
+    animation: pulse 2s infinite;
+}
+
+@keyframes pulse {
+    0% { box-shadow: 0 0 0 0 rgba(16, 185, 129, 0.5); }
+    70% { box-shadow: 0 0 0 8px rgba(16, 185, 129, 0); }
+    100% { box-shadow: 0 0 0 0 rgba(16, 185, 129, 0); }
+}
+
+.nav-icon-btn {
+    position: relative;
+    background: var(--surface-soft-3);
+    border: 1px solid var(--border-hairline);
+    color: var(--text-tertiary);
+    border-radius: 10px;
+    width: 40px;
+    height: 40px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    cursor: pointer;
+    transition: all 0.2s ease;
+}
+
+.nav-icon-btn:hover {
+    color: var(--text-main);
+    background: var(--surface-soft-2);
+}
+
+.user-profile-trigger {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    cursor: pointer;
+    position: relative;
+    padding: 4px 8px;
+    border-radius: 12px;
+    transition: background 0.2s ease;
+}
+
+.user-profile-trigger:hover {
+    background: var(--surface-soft-3);
+}
+
+.avatar-box {
+    width: 38px;
+    height: 38px;
+    border-radius: 10px;
+    background: linear-gradient(135deg, #3b82f6 0%, #2dd4bf 100%);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    color: var(--text-main);
+    font-weight: 700;
+    text-transform: uppercase;
+}
+
+.user-meta {
+    display: flex;
+    flex-direction: column;
+    line-height: 1.2;
+}
+
+.user-name {
+    font-size: 0.85rem;
+    font-weight: 600;
+    color: var(--text-main);
+}
+
+.user-role {
+    font-size: 0.72rem;
+    color: var(--text-disabled);
+    text-transform: capitalize;
+}
+
+.profile-dropdown {
+    position: absolute;
+    top: 52px;
+    right: 0;
+    width: 220px;
+    border-radius: 14px;
+    padding: 14px;
+    z-index: 9999;
+}
+
+.dropdown-info .full-name {
+    margin: 0;
+    font-size: 0.9rem;
+    font-weight: 600;
+    color: var(--text-main);
+}
+
+.dropdown-info .email {
+    margin: 4px 0 0;
+    font-size: 0.78rem;
+    color: var(--text-disabled);
+}
+
+.divider {
+    height: 1px;
+    background: var(--surface-soft-2);
+    margin: 12px 0;
+}
+
+.dropdown-link {
+    width: 100%;
+    text-align: left;
+    background: none;
+    border: none;
+    color: #f87171;
+    font-size: 0.85rem;
+    font-weight: 600;
+    cursor: pointer;
+    padding: 6px 4px;
+    border-radius: 8px;
+    transition: background 0.2s ease;
+}
+
+.dropdown-link:hover {
+    background: rgba(239, 68, 68, 0.1);
+}
+
+.rotate {
+    transform: rotate(180deg);
+    transition: transform 0.2s ease;
+}
+
+/* --- Shared spinner --- */
+.spin {
+    animation: spin 0.8s linear infinite;
+}
+
+@keyframes spin {
+    to { transform: rotate(360deg); }
+}
