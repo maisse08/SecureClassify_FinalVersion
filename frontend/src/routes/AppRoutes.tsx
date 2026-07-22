@@ -4,7 +4,8 @@ import { ProtectedRoute } from "../components/ProtectedRoute/ProtectedRoute";
 import { AdminLayout } from "../layouts/AdminLayout";
 import { UserLayout } from "../layouts/UserLayout";
 import { LoginPage } from "../pages/Login/LoginPage";
-import { DashboardPage } from "../pages/Dashboard/DashboardPage";
+import { AdminDashboardPage } from "../pages/Dashboard/AdminDashboardPage";
+import { UserDashboardPage } from "../pages/Dashboard/UserDashboardPage";
 import { DataPage } from "../pages/Data/DataPage";
 import { CIAAssessmentPage } from "../pages/CIAAssessment/CIAAssessmentPage";
 import { TrashPage } from "../pages/Trash/TrashPage";
@@ -16,7 +17,6 @@ import { DataTypesPage } from "../pages/DataTypes/DataTypesPage";
 import { HistoryPage } from "../pages/History/HistoryPage";
 import { NotFoundPage } from "../pages/NotFound/NotFoundPage";
 import { SharingPage } from "../pages/Sharing";
-import { SettingsPage } from "../pages/Settings";
 
 export const AppRoutes = () => {
     const { isAdmin } = useAuth();
@@ -34,17 +34,16 @@ export const AppRoutes = () => {
                 }
             >
                 <Route index element={<Navigate to="/dashboard" replace />} />
-                <Route path="dashboard" element={<DashboardPage />} />
+                <Route path="dashboard" element={isAdmin ? <AdminDashboardPage /> : <UserDashboardPage />} />
                 <Route path="data" element={<DataPage />} />
                 <Route path="cia-assessment" element={<CIAAssessmentPage />} />
                 <Route path="sharing" element={<SharingPage />} />
-                <Route path="settings" element={<SettingsPage />} />
                 <Route path="trash" element={<TrashPage />} />
                 <Route path="users" element={<ProtectedRoute anyPermission={["users.create", "users.view.others", "users.update", "users.delete"]}><UsersPage /></ProtectedRoute>} />
                 <Route path="departments" element={<ProtectedRoute anyPermission={["departments.create", "departments.update", "departments.archive", "departments.restore", "departments.delete"]}><DepartmentsPage /></ProtectedRoute>} />
                 <Route path="categories" element={<ProtectedRoute anyPermission={["categories.create", "categories.update", "categories.archive", "categories.restore", "categories.delete"]}><CategoriesPage /></ProtectedRoute>} />
                 <Route path="datatypes" element={<ProtectedRoute anyPermission={["datatypes.create", "datatypes.update", "datatypes.archive", "datatypes.restore", "datatypes.delete"]}><DataTypesPage /></ProtectedRoute>} />
-                <Route path="history" element={<HistoryPage />} />
+                <Route path="history" element={isAdmin ? <HistoryPage /> : <NotFoundPage />} />
                 <Route path="profile" element={<ProfilePage />} />
             </Route>
 

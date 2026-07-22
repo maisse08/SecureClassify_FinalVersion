@@ -47,31 +47,34 @@
    dark (default) theme.
    --------------------------------------------------------------- */
 [data-theme="light"] {
-    --bg-deep: #f4f6fb;
-    --bg-card: rgba(255, 255, 255, 0.85);
+    /* Clean white/light gray backgrounds */
+    --bg-deep: #f8fafc;
+    --bg-card: #ffffff;
     --glass-border: rgba(15, 23, 42, 0.08);
 
-    --text-main: #0f172a;
+    /* Dark gray text for better readability */
+    --text-main: #1e293b;
     --text-muted: #475569;
-    --text-dim: #94a3b8;
+    --text-dim: #64748b;
     --text-secondary: #334155;
     --text-tertiary: #64748b;
     --text-disabled: #94a3b8;
     --text-faint: #94a3b8;
 
-    --surface-card: rgba(255, 255, 255, 0.85);
-    --surface-soft: rgba(15, 23, 42, 0.05);
-    --surface-soft-2: rgba(15, 23, 42, 0.08);
-    --surface-soft-3: rgba(15, 23, 42, 0.03);
-    --surface-inset: rgba(226, 232, 240, 0.6);
-    --surface-inset-strong: rgba(226, 232, 240, 0.9);
-    --surface-modal: rgba(255, 255, 255, 0.97);
-    --border-soft: rgba(15, 23, 42, 0.1);
-    --border-hairline: rgba(15, 23, 42, 0.07);
-    --border-faint: rgba(15, 23, 42, 0.12);
-    --modal-overlay: rgba(15, 23, 42, 0.35);
-    --table-row-hover: rgba(15, 23, 42, 0.03);
-    --body-gradient: radial-gradient(circle at top right, #eef2fb 0%, #f4f6fb 100%);
+    /* Clean white surfaces with subtle borders */
+    --surface-card: #ffffff;
+    --surface-soft: #f1f5f9;
+    --surface-soft-2: #e2e8f0;
+    --surface-soft-3: #f8fafc;
+    --surface-inset: #ffffff;
+    --surface-inset-strong: #ffffff;
+    --surface-modal: #ffffff;
+    --border-soft: #e2e8f0;
+    --border-hairline: #f1f5f9;
+    --border-faint: #cbd5e1;
+    --modal-overlay: rgba(15, 23, 42, 0.4);
+    --table-row-hover: #f8fafc;
+    --body-gradient: linear-gradient(135deg, #f8fafc 0%, #ffffff 100%);
 }
 
 body {
@@ -84,8 +87,7 @@ body {
 
 .glass-panel {
     background: var(--bg-card);
-    backdrop-filter: blur(12px);
     border: 1px solid var(--glass-border);
-    border-radius: 24px; /* Matches the login box in your image */
-    box-shadow: 0 8px 32px 0 rgba(0, 0, 0, 0.4);
+    border-radius: 16px;
+    box-shadow: 0 1px 3px 0 rgba(0, 0, 0, 0.05), 0 1px 2px -1px rgba(0, 0, 0, 0.05);
 }

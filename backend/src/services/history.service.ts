@@ -31,7 +31,15 @@ class HistoryService {
 
     async getDataHistoryByUser(userId: string) {
         const all = await dataHistoryRepository.findAll();
-        return all.filter((h: any) => h.performedBy?.toString() === userId);
+        return all.filter((h: any) => {
+            if (!h.performedBy) return false;
+            // performedBy is populated (object with _id) by the repository's findAll()
+            const performedById =
+                typeof h.performedBy === "object" && h.performedBy._id
+                    ? h.performedBy._id.toString()
+                    : h.performedBy.toString();
+            return performedById === userId;
+        });
     }
 }
 

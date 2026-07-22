@@ -9,7 +9,9 @@ export const AdminLayout = () => {
             <main className="main-content">
                 <Navbar />
                 <div className="content-body">
-                    <Outlet />
+                    <div className="content-container">
+                        <Outlet />
+                    </div>
                 </div>
             </main>
         </div>

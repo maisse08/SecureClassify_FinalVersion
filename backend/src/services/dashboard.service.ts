@@ -5,6 +5,8 @@ import dataHistoryRepository from "../repositories/dataHistory.repository";
 import connectionHistoryRepository from "../repositories/connectionHistory.repository";
 import categoryRepository from "../repositories/category.repository";
 import departmentRepository from "../repositories/department.repository";
+import shareRepository from "../repositories/share.repository";
+import userRepository from "../repositories/user.repository";
 
 type Role = string;
 
@@ -68,8 +70,6 @@ class DashboardService {
     }
 
     const globalClassification = {
-      // Highest global classification level reached across all classified
-      // datasets - the organization's overall exposure level (1-5).
       highest: highestGlobalClassification,
       average:
         classifiedGlobalCount > 0
@@ -140,12 +140,76 @@ class DashboardService {
     const recentConnections = (connections as any[]).slice(0, 10);
     const recentActions = (filteredDataHistory as any[]).slice(0, 10);
 
-    // --- Shared stats placeholder (share aggregation not implemented in repo) ---
+    // --- Monthly uploads (dynamic) ---
+    const monthly = isAdmin
+      ? await dataRepository.monthlyUploads()
+      : await dataRepository.monthlyUploads(requester.id);
+
+    // --- Share stats dynamically ---
+    let totalSharedCount = 0;
+    let sharedWithMeCount = 0;
+    let sharedByMeCount = 0;
+    try {
+      if (isAdmin) {
+        const allShares = await shareRepository.findAll();
+        totalSharedCount = allShares.length;
+      } else {
+        const myShares = await shareRepository.findBySender(requester.id);
+        sharedByMeCount = myShares.length;
+        const receivedShares = await shareRepository.findByReceiver(requester.id);
+        sharedWithMeCount = receivedShares.length;
+        totalSharedCount = sharedByMeCount + sharedWithMeCount;
+      }
+    } catch {
+      // share repo might not be fully integrated
+    }
+
     const sharedStats = {
-      totalShared: null,
-      sharedWithMe: null,
-      sharedByMe: null,
+      totalShared: totalSharedCount,
+      sharedWithMe: sharedWithMeCount,
+      sharedByMe: sharedByMeCount,
     };
+
+    // --- Active users (admin only) ---
+    let activeUsersCount = 0;
+    let allUsersForDept: any[] = [];
+    if (isAdmin) {
+      try {
+        allUsersForDept = await userRepository.findAll();
+        activeUsersCount = allUsersForDept.length; // total users, not just active
+      } catch (err) {
+        console.error("Dashboard: failed to fetch users", err);
+      }
+    }
+
+    // --- Department distribution: admin sees users per dept (top 3), regular users see data per dept (top 3) ---
+    let finalDepartmentDistribution = departmentDistribution;
+    if (isAdmin && allUsersForDept.length > 0) {
+      const userDeptDist: Record<string, number> = {};
+      for (const u of allUsersForDept as any[]) {
+        const deptId = u.department?.toString();
+        if (deptId) userDeptDist[deptId] = (userDeptDist[deptId] || 0) + 1;
+      }
+
+      finalDepartmentDistribution = Object.entries(userDeptDist)
+        .map(([id, count]) => ({
+          departmentId: id,
+          departmentName: departmentMap.get(id) || id,
+          count,
+        }))
+        .sort((a, b) => b.count - a.count)
+        .slice(0, 3);
+    } else {
+      // For non-admin or fallback: show top 3 data-per-department
+      finalDepartmentDistribution = departmentDistribution
+        .sort((a: any, b: any) => b.count - a.count)
+        .slice(0, 3);
+    }
+
+    // --- Category distribution: show top 3 categories with most data ---
+    const topCategoryDistribution = categoryDistribution
+      .sort((a: any, b: any) => b.count - a.count)
+      .slice(0, 3);
 
     return {
       success: true,
@@ -155,18 +219,19 @@ class DashboardService {
         stats: {
           totalData: activeCount,
           trashData: trashCount,
+          activeUsers: activeUsersCount,
           importedDatasets: statusCounts.imported,
-          // Datasets still waiting for a CIA assessment (status "Imported").
           datasetsPendingCIA: statusCounts.imported,
           classifiedDatasets: statusCounts.classified,
           datasetStatus: statusCounts,
           globalClassification,
           classification: ciaBuckets,
           distribution: {
-            categories: categoryDistribution,
-            departments: departmentDistribution,
+            categories: topCategoryDistribution,
+            departments: finalDepartmentDistribution,
           },
           shared: sharedStats,
+          monthlyUploads: monthly,
         },
         activity: {
           recentConnections,
@@ -178,4 +243,3 @@ class DashboardService {
 }
 
 export default new DashboardService();
-

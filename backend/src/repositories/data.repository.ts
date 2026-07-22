@@ -211,6 +211,38 @@ class DataRepository {
             return acc;
         }, {});
     }
+
+    async monthlyUploads(ownerId?: string): Promise<{ month: string; count: number }[]> {
+        const match: Record<string, any> = {};
+        if (ownerId) {
+            match.proprietaire = ownerId;
+        }
+
+        const rows = await Data.aggregate([
+            { $match: match },
+            {
+                $group: {
+                    _id: {
+                        year: { $year: "$dateCreation" },
+                        month: { $month: "$dateCreation" },
+                    },
+                    count: { $sum: 1 },
+                },
+            },
+            { $sort: { "_id.year": 1, "_id.month": 1 } },
+            { $limit: 12 },
+        ]);
+
+        const monthNames = [
+            "Jan", "Feb", "Mar", "Apr", "May", "Jun",
+            "Jul", "Aug", "Sep", "Oct", "Nov", "Dec",
+        ];
+
+        return rows.map((r: any) => ({
+            month: monthNames[r._id.month - 1],
+            count: r.count,
+        }));
+    }
 }
 
 export default new DataRepository();

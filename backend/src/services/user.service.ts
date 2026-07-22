@@ -44,7 +44,9 @@ class UserService {
 
             department: user.department,
 
-            isActive: user.isActive
+            isActive: user.isActive,
+
+            createdAt: user.createdAt,
 
         };
 
@@ -357,7 +359,9 @@ class UserService {
 
             department: user.department,
 
-            isActive: user.isActive
+            isActive: user.isActive,
+
+            createdAt: user.createdAt,
 
         };
 

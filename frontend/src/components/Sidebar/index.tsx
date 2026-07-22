@@ -5,7 +5,7 @@ import { useLanguage } from "../../hooks/useLanguage";
 import { REFERENTIELS_PERMISSIONS } from "../../constants/permissions";
 import {
     LayoutDashboard, Files, Share2, Trash2, Users,
-    Building2, FolderTree, FileType, History, Settings,
+    Building2, FolderTree, FileType, History,
     User, ChevronLeft, ChevronRight, ChevronDown, Shield, ShieldAlert,
     Archive
 } from "lucide-react";
@@ -61,8 +61,9 @@ export const Sidebar = () => {
                 <NavItem to="/cia-assessment" icon={<ShieldAlert size={20} />} label={t("nav.ciaAssessment")} />
                 <NavItem to="/sharing" icon={<Share2 size={20} />} label={t("nav.sharing")} />
                 <NavItem to="/trash" icon={<Trash2 size={20} />} label={t("nav.trash")} />
-                <NavItem to="/history" icon={<History size={20} />} label={t("nav.activity")} />
-
+                {isAdmin && (
+                    <NavItem to="/history" icon={<History size={20} />} label={t("nav.activity")} />
+                )}
                 {(canManageUsers || canManageReferentiels) && (
                     <div className="admin-section">
                         {!collapsed && <span className="section-label">{t("nav.administration")}</span>}
@@ -101,7 +102,6 @@ export const Sidebar = () => {
             </nav>
 
             <div className="sidebar-footer">
-                <NavItem to="/settings" icon={<Settings size={20} />} label={t("nav.settings")} />
                 <NavItem to="/profile" icon={<User size={20} />} label={t("nav.profile")} />
             </div>
         </aside>

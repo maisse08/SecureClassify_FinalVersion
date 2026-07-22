@@ -42,7 +42,7 @@ export const Navbar = () => {
 
                 <div className="user-profile-trigger" onClick={() => setDropdownOpen(!dropdownOpen)}>
                     <div className="avatar-box">
-                        {user?.firstName?.charAt(0)}
+                        {user?.firstName?.charAt(0) || "?"}
                     </div>
                     <div className="user-meta">
                         <span className="user-name">{user?.firstName} {user?.lastName}</span>
