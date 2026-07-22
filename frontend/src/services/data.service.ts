@@ -75,4 +75,16 @@ export const dataService = {
         const res = await api.delete(`/data/${id}`);
         return res.data;
     },
+
+    // Get the preview URL for an imported file (for direct browser use)
+    getFilePreviewUrl(id: string, filename: string) {
+        return `/data/${id}/files/${encodeURIComponent(filename)}`;
+    },
+
+    // Fetch a file as a blob with authentication (for preview/download)
+    async getFileBlob(id: string, filename: string, download: boolean = false): Promise<Blob> {
+        const url = `/data/${id}/files/${encodeURIComponent(filename)}?download=${download}`;
+        const res = await api.get(url, { responseType: 'blob' });
+        return res.data;
+    },
 };

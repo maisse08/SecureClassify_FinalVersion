@@ -1,11 +1,14 @@
 import { useState, useEffect, useCallback, useRef } from "react";
+import { useSearchParams } from "react-router-dom";
 import { useAuth } from "../../hooks/useAuth";
 import { useToast } from "../../hooks/useToast";
 import { dataService } from "../../services/data.service";
 import { shareService } from "../../services/share.service";
 import { categoryService } from "../../services/category.service";
+import { userService } from "../../services/user.service";
 import { IData } from "../../types/data";
-import { Database, Upload, Eye, Share2, Trash2, Download, X, FileText, Loader2, AlertCircle, Send, FolderInput, Files, Edit3 } from "lucide-react";
+import { Database, Upload, Eye, Share2, Trash2, Download, X, FileText, Loader2, AlertCircle, Send, FolderInput, Files, Edit3, Image, FileType2, FileSpreadsheet, File, Users, FileCode } from "lucide-react";
+import { FilePreviewModal } from "../../components/FilePreviewModal/FilePreviewModal";
 
 const formatSize = (bytes?: number) => {
     if (bytes === undefined || bytes === null) return "-";
@@ -32,9 +35,26 @@ const STATUS_BADGE: Record<string, { label: string; cls: string }> = {
     "Classified": { label: "Classified", cls: "badge-critical" },
 };
 
+// Helper to get file icon based on extension
+const getFileIcon = (filename: string) => {
+    const ext = filename.split(".").pop()?.toLowerCase() || "";
+    const imageExts = ["png", "jpg", "jpeg", "gif", "webp", "svg"];
+    const pdfExts = ["pdf"];
+    const textExts = ["txt", "json", "csv", "xml", "md", "log"];
+    const officeExts = ["doc", "docx", "xls", "xlsx", "ppt", "pptx"];
+    
+    if (imageExts.includes(ext)) return { icon: Image, color: "#10b981" };
+    if (pdfExts.includes(ext)) return { icon: FileType2, color: "#ef4444" };
+    if (textExts.includes(ext)) return { icon: FileCode, color: "#3b82f6" };
+    if (officeExts.includes(ext)) return { icon: FileSpreadsheet, color: "#f59e0b" };
+    return { icon: File, color: "#6b7280" };
+};
+
+
 export const DataPage = () => {
     const { isAdmin, user } = useAuth();
     const { addToast } = useToast();
+    const [searchParams] = useSearchParams();
 
     // A user can manage everyone's data if they're an admin, or if an admin
     // delegated them the "data.view.others" permission.
@@ -47,25 +67,34 @@ export const DataPage = () => {
     const [searchQuery, setSearchQuery] = useState("");
 
     const [catList, setCatList] = useState<any[]>([]);
+    const [userList, setUserList] = useState<any[]>([]);
+    const [selectedUserId, setSelectedUserId] = useState<string>("");
+
+    // Read filters from query parameters
+    const filterCategory = searchParams.get("category");
+    const filterDepartment = searchParams.get("department");
+    const filterClassification = searchParams.get("classification");
 
     const fetchData = useCallback(async () => {
         setLoading(true);
         setError("");
         try {
             // All users now use getAll() which returns owned + shared data
-            const [dashRes, catRes] = await Promise.all([
+            const [dashRes, catRes, usersRes] = await Promise.all([
                 dataService.getAll(),
                 categoryService.getAll().catch(() => ({ data: [] })),
+                canManageAllData ? userService.getAll().catch(() => ({ data: [] })) : Promise.resolve({ data: [] }),
             ]);
             const raw = Array.isArray(dashRes?.data) ? dashRes.data : Array.isArray(dashRes) ? dashRes : [];
             setDataList(raw);
             setCatList(Array.isArray(catRes?.data) ? catRes.data : Array.isArray(catRes) ? catRes : []);
+            setUserList(Array.isArray(usersRes?.data) ? usersRes.data : Array.isArray(usersRes) ? usersRes : []);
         } catch (err: any) {
             setError(err.response?.data?.message || "Failed to load data");
         } finally {
             setLoading(false);
         }
-    }, []);
+    }, [canManageAllData]);
 
     const isOwnItem = (item: any) => {
         const ownerId = item.proprietaire?._id || item.proprietaire;
@@ -88,10 +117,76 @@ export const DataPage = () => {
         );
     };
 
-    const myData = dataList.filter((item: any) => isOwnItem(item) && matchesSearch(item));
-    const otherData = dataList.filter((item: any) => !isOwnItem(item) && matchesSearch(item));
+    const matchesCategory = (item: any) => {
+        if (!filterCategory) return true;
+        const itemCatId = item.categorie?._id || item.categorie;
+        return itemCatId && itemCatId.toString() === filterCategory;
+    };
+
+    const matchesDepartment = (item: any) => {
+        if (!filterDepartment) return true;
+        const ownerId = item.proprietaire?._id || item.proprietaire;
+        if (!ownerId) return false;
+        const owner = userList.find((u: any) => (u._id || u.id)?.toString() === ownerId.toString());
+        return owner && (owner.department?._id || owner.department)?.toString() === filterDepartment;
+    };
+
+    const matchesClassification = (item: any) => {
+        if (!filterClassification) return true;
+        const globalCIA = item.niveauCIA?.niveauGlobal;
+        if (!globalCIA) return false;
+        const level = Number(globalCIA);
+        if (filterClassification === "public") return level <= 2;
+        if (filterClassification === "internal") return level === 3 || level === 4;
+        if (filterClassification === "confidential") return level === 5;
+        if (filterClassification === "secret") return level === 5;
+        if (filterClassification === "critical") return level === 5;
+        return true;
+    };
+
+    // For admins: allow filtering by specific user
+    const filteredData = selectedUserId
+        ? dataList.filter((item: any) => {
+            const ownerId = item.proprietaire?._id || item.proprietaire;
+            return ownerId && ownerId.toString() === selectedUserId;
+        })
+        : dataList;
+
+    const myData = filteredData.filter((item: any) => isOwnItem(item) && matchesSearch(item) && matchesCategory(item) && matchesDepartment(item) && matchesClassification(item));
+    const otherData = filteredData.filter((item: any) => !isOwnItem(item) && matchesSearch(item) && matchesCategory(item) && matchesDepartment(item) && matchesClassification(item));
 
     useEffect(() => { fetchData(); }, [fetchData]);
+
+    // Build active filter badge descriptions
+    const activeFilterBadges: { label: string; onClear: () => void }[] = [];
+    if (filterCategory) {
+        const cat = catList.find((c: any) => (c._id || c.id)?.toString() === filterCategory);
+        activeFilterBadges.push({
+            label: `Category: ${cat?.name || filterCategory}`,
+            onClear: () => { /* handled by removing param via navigation */ },
+        });
+    }
+    if (filterDepartment) {
+        const dept = userList.find((u: any) => (u.department?._id || u.department)?.toString() === filterDepartment)?.department;
+        const deptName = typeof dept === "object" ? dept?.name : filterDepartment;
+        activeFilterBadges.push({
+            label: `Department: ${deptName || filterDepartment}`,
+            onClear: () => {},
+        });
+    }
+    if (filterClassification) {
+        const labels: Record<string, string> = {
+            public: "Public (CIA ≤ 2)",
+            internal: "Internal (CIA 3-4)",
+            confidential: "Confidential (CIA = 5)",
+            secret: "Secret (CIA = 5)",
+            critical: "Critical (CIA = 5)",
+        };
+        activeFilterBadges.push({
+            label: `Classification: ${labels[filterClassification] || filterClassification}`,
+            onClear: () => {},
+        });
+    }
 
     const [showModal, setShowModal] = useState(false);
     const [importForm, setImportForm] = useState({ ...emptyImportForm });
@@ -106,6 +201,13 @@ export const DataPage = () => {
     const [shareForm, setShareForm] = useState({ ...emptyShareForm });
     const [shareSaving, setShareSaving] = useState(false);
     const [shareResult, setShareResult] = useState("");
+
+     // File preview modal state
+     const [previewFile, setPreviewFile] = useState<{ dataId: string; file: any } | null>(null);
+
+     // All Imported Files modal state
+     const [showAllFilesModal, setShowAllFilesModal] = useState(false);
+     const [allFilesSearchQuery, setAllFilesSearchQuery] = useState("");
 
     const handleFilesChosen = (fileList: FileList | null) => {
         if (!fileList) return;
@@ -234,6 +336,9 @@ export const DataPage = () => {
                             // no matter how permissive the granted access level is.
                             const canShare = isOwnItem(item) || canManageAllData;
                             const canModify = isOwnItem(item) || canManageAllData || item.userPermission === "Read & Write" || item.userPermission === "Full Access";
+                            // Delete is reserved for the owner, admin, or a "Full Access" share —
+                            // a "Read & Write" collaborator can edit but not delete.
+                            const canDelete = isOwnItem(item) || canManageAllData || item.userPermission === "Full Access";
 
                             return (
                                 <tr key={item._id}>
@@ -271,7 +376,7 @@ export const DataPage = () => {
                                             {canShare && (
                                                 <button type="button" className="btn btn-warning btn-sm" onClick={() => { setSharingItem(item); setShareForm({ ...emptyShareForm }); setShareResult(""); }}><Share2 size={14} /> Share</button>
                                             )}
-                                            {canModify && (
+                                            {canDelete && (
                                                 <button type="button" className="btn btn-danger btn-sm" onClick={() => setConfirmDeleteId(item._id)}><Trash2 size={14} /> Delete</button>
                                             )}
                                         </div>
@@ -294,27 +399,69 @@ export const DataPage = () => {
                         <Upload size={18} /> Import Data
                     </button>
                 </div>
-                <div className="form-group" style={{ maxWidth: "420px", marginBottom: 0 }}>
-                    <input
-                        className="form-control"
-                        placeholder="Search by title, description, or ID..."
-                        value={searchQuery}
-                        onChange={e => setSearchQuery(e.target.value)}
-                    />
+                <div style={{ display: "flex", gap: "12px", flexWrap: "wrap", marginTop: "12px" }}>
+                    <div className="form-group" style={{ flex: 1, minWidth: "240px", marginBottom: 0 }}>
+                        <input
+                            className="form-control"
+                            placeholder="Search by title, description, or ID..."
+                            value={searchQuery}
+                            onChange={e => setSearchQuery(e.target.value)}
+                        />
+                    </div>
+                    {canManageAllData && (
+                        <div className="form-group" style={{ minWidth: "260px", marginBottom: 0 }}>
+                            <select
+                                className="form-control"
+                                value={selectedUserId}
+                                onChange={e => setSelectedUserId(e.target.value)}
+                            >
+                                <option value="">All Users</option>
+                                {userList.map((u: any) => (
+                                    <option key={u._id || u.id} value={u._id || u.id}>
+                                        {u.firstName} {u.lastName} ({u.email})
+                                    </option>
+                                ))}
+                            </select>
+                        </div>
+                    )}
                 </div>
+                {activeFilterBadges.length > 0 && (
+                    <div style={{ marginTop: "10px", display: "flex", gap: "8px", flexWrap: "wrap", alignItems: "center" }}>
+                        <span style={{ fontSize: "0.8rem", color: "var(--text-tertiary)", fontWeight: 600 }}>Active Filters:</span>
+                        {activeFilterBadges.map((badge, idx) => (
+                            <span key={idx} style={{ padding: "4px 10px", background: "var(--primary-soft)", color: "var(--primary)", borderRadius: "8px", fontSize: "0.8rem", fontWeight: 600, display: "inline-flex", alignItems: "center", gap: "6px" }}>
+                                {badge.label}
+                            </span>
+                        ))}
+                    </div>
+                )}
+                {canManageAllData && selectedUserId && (
+                    <div style={{ marginTop: "10px", padding: "8px 12px", background: "var(--primary-soft)", borderRadius: "8px", fontSize: "0.85rem", color: "var(--primary)", display: "inline-flex", alignItems: "center", gap: "8px" }}>
+                        <Users size={14} />
+                        Filtering data for: <strong>{userList.find(u => (u._id || u.id) === selectedUserId)?.firstName} {userList.find(u => (u._id || u.id) === selectedUserId)?.lastName}</strong>
+                        <button
+                            onClick={() => setSelectedUserId("")}
+                            style={{ background: "none", border: "none", color: "inherit", cursor: "pointer", padding: 0, display: "inline-flex" }}
+                        >
+                            <X size={14} />
+                        </button>
+                    </div>
+                )}
             </div>
 
             {/* My Data — every user can fully manage the data they imported:
                 view, share, and delete it. */}
-            <div className="card">
-                <div className="card-header">
-                    <div>
-                        <h4><Database size={18} /> My Datasets</h4>
-                        <p>Datasets you imported and fully control. CIA is assigned separately on the CIA Assessment page.</p>
+            {!selectedUserId && (
+                <div className="card">
+                    <div className="card-header">
+                        <div>
+                            <h4><Database size={18} /> My Datasets</h4>
+                            <p>Datasets you imported and fully control. CIA is assigned separately on the CIA Assessment page.</p>
+                        </div>
                     </div>
+                    {renderDataTable(myData, "You haven't imported any data yet. Click 'Import Data' to begin.")}
                 </div>
-                {renderDataTable(myData, "You haven't imported any data yet. Click 'Import Data' to begin.")}
-            </div>
+            )}
 
             {/* Second section is intentionally separate from "My Data" — it is
                 either data an admin granted this user broad access to manage,
@@ -322,15 +469,17 @@ export const DataPage = () => {
             <div className="card">
                 <div className="card-header">
                     <div>
-                        <h4><Share2 size={18} /> {canManageAllData ? "All Users' Data (Granted by Admin)" : "Shared With Me"}</h4>
+                        <h4><Share2 size={18} /> {canManageAllData ? (selectedUserId ? "User's Datasets" : "All Users' Data (Granted by Admin)") : "Shared With Me"}</h4>
                         <p>
                             {canManageAllData
-                                ? "You've been granted permission to view and manage every user's data."
+                                ? selectedUserId
+                                    ? "Datasets owned by the selected user."
+                                    : "You've been granted permission to view and manage every user's data. Use the filter above to view a specific user's data."
                                 : "Datasets other users have shared with you. Shared data can never be re-shared."}
                         </p>
                     </div>
                 </div>
-                {renderDataTable(otherData, canManageAllData ? "No other users' data found." : "No datasets have been shared with you yet.")}
+                {renderDataTable(otherData, canManageAllData ? (selectedUserId ? "This user has no datasets." : "No other users' data found.") : "No datasets have been shared with you yet.")}
             </div>
 
             {/* Import Modal */}
@@ -473,14 +622,52 @@ export const DataPage = () => {
                             {viewingItem.importedFiles && viewingItem.importedFiles.length > 0 && (
                                 <div>
                                     <span style={{ color: "var(--text-tertiary)" }}>Imported Files:</span>
-                                    <div style={{ maxHeight: "150px", overflowY: "auto", marginTop: "6px", fontSize: "0.85rem" }}>
-                                        {viewingItem.importedFiles.slice(0, 30).map((f, i) => (
-                                            <div key={i} style={{ display: "flex", alignItems: "center", gap: 6, justifyContent: "space-between" }}>
-                                                <span style={{ display: "inline-flex", alignItems: "center", gap: 6 }}><FileText size={13} /> {f.originalName}</span>
-                                                <span style={{ color: "var(--text-tertiary)" }}>{formatSize(f.size)}</span>
-                                            </div>
-                                        ))}
-                                        {viewingItem.importedFiles.length > 30 && <div>...and {viewingItem.importedFiles.length - 30} more</div>}
+                                    <div style={{ marginTop: "6px", fontSize: "0.85rem" }}>
+                                        {viewingItem.importedFiles.slice(0, 5).map((f, i) => {
+                                            const { icon: FileIcon, color } = getFileIcon(f.originalName);
+                                            return (
+                                                <div key={i} style={{ display: "flex", alignItems: "center", gap: 6, justifyContent: "space-between", padding: "4px 0" }}>
+                                                    <button 
+                                                        onClick={() => setPreviewFile({ dataId: viewingItem._id, file: f })}
+                                                        style={{ 
+                                                            display: "inline-flex", 
+                                                            alignItems: "center", 
+                                                            gap: 6, 
+                                                            background: "none", 
+                                                            border: "none", 
+                                                            color: "var(--primary)", 
+                                                            cursor: "pointer",
+                                                            padding: 0,
+                                                            fontSize: "0.85rem"
+                                                        }}
+                                                        title="Click to preview"
+                                                    >
+                                                        <FileIcon size={13} color={color} />
+                                                        {f.originalName}
+                                                    </button>
+                                                    <span style={{ color: "var(--text-tertiary)" }}>{formatSize(f.size)}</span>
+                                                </div>
+                                            );
+                                        })}
+                                        {viewingItem.importedFiles.length > 5 && (
+                                            <button 
+                                                onClick={() => setShowAllFilesModal(true)}
+                                                style={{
+                                                    background: "none",
+                                                    border: "none",
+                                                    color: "var(--primary)",
+                                                    cursor: "pointer",
+                                                    padding: "4px 0",
+                                                    fontSize: "0.85rem",
+                                                    fontWeight: "600",
+                                                    display: "inline-flex",
+                                                    alignItems: "center",
+                                                    gap: "4px"
+                                                }}
+                                            >
+                                                + {viewingItem.importedFiles.length - 5} more files
+                                            </button>
+                                        )}
                                     </div>
                                 </div>
                             )}
@@ -488,7 +675,7 @@ export const DataPage = () => {
                                 <div><span style={{ color: "var(--text-tertiary)" }}>Attachment:</span> <a href={`http://localhost:5000/uploads/${viewingItem.pieceJointe}`} target="_blank" rel="noreferrer" style={{ display: "inline-flex", alignItems: "center", gap: 6, textDecoration: "underline" }}><Download size={15} /> {viewingItem.pieceJointe}</a></div>
                             )}
                             <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "10px", fontSize: "0.8rem", color: "var(--text-tertiary)" }}>
-                                <div>Created: {new Date(viewingItem.dateCreation).toLocaleString()}</div>
+                                <div>Imported: {new Date(viewingItem.dateCreation).toLocaleString()}</div>
                                 <div>Modified: {new Date(viewingItem.dateModification).toLocaleString()}</div>
                             </div>
                         </div>
@@ -585,6 +772,103 @@ export const DataPage = () => {
                             <button className="btn btn-danger" onClick={() => handleDelete(confirmDeleteId)}>
                                 <Trash2 size={16} /> Move to Trash
                             </button>
+                        </div>
+                    </div>
+                </div>
+            )}
+
+            {/* File Preview Modal */}
+            {previewFile && (
+                <FilePreviewModal
+                    dataId={previewFile.dataId}
+                    file={previewFile.file}
+                    onClose={() => { setPreviewFile(null); }}
+                />
+            )}
+
+            {/* All Imported Files Modal */}
+            {showAllFilesModal && viewingItem && (
+                <div className="modal-overlay" onClick={() => { setShowAllFilesModal(false); setAllFilesSearchQuery(""); }}>
+                    <div className="modal" onClick={e => e.stopPropagation()} style={{ maxWidth: "700px", maxHeight: "80vh", overflow: "hidden", display: "flex", flexDirection: "column" }}>
+                        <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: "16px" }}>
+                            <h3 style={{ margin: 0 }}><Files size={22} /> All Imported Files</h3>
+                            <button className="btn btn-sm" onClick={() => { setShowAllFilesModal(false); setAllFilesSearchQuery(""); }}><X size={16} /></button>
+                        </div>
+
+                        {/* Search input */}
+                        <div className="form-group" style={{ marginBottom: "16px" }}>
+                            <input
+                                className="form-control"
+                                placeholder="Search files by name..."
+                                value={allFilesSearchQuery}
+                                onChange={e => setAllFilesSearchQuery(e.target.value)}
+                                autoFocus
+                            />
+                        </div>
+
+                        {/* Files list */}
+                        <div style={{ flex: 1, overflowY: "auto", maxHeight: "500px" }}>
+                            {(() => {
+                                const filteredFiles = viewingItem.importedFiles?.filter((f: any) =>
+                                    f.originalName.toLowerCase().includes(allFilesSearchQuery.toLowerCase())
+                                ) || [];
+
+                                if (filteredFiles.length === 0) {
+                                    return (
+                                        <div style={{ textAlign: "center", padding: "40px", color: "var(--text-tertiary)" }}>
+                                            <File size={48} style={{ marginBottom: "12px", opacity: 0.5 }} />
+                                            <div>{allFilesSearchQuery ? "No files match your search" : "No files imported"}</div>
+                                        </div>
+                                    );
+                                }
+
+                                return (
+                                    <div style={{ display: "flex", flexDirection: "column", gap: "2px" }}>
+                                        {filteredFiles.map((f: any, i: number) => {
+                                            const { icon: FileIcon, color } = getFileIcon(f.originalName);
+                                            return (
+                                                <div
+                                                    key={i}
+                                                    onClick={() => setPreviewFile({ dataId: viewingItem._id, file: f })}
+                                                    style={{
+                                                        display: "flex",
+                                                        alignItems: "center",
+                                                        gap: "12px",
+                                                        padding: "10px 12px",
+                                                        background: "var(--surface)",
+                                                        borderRadius: "8px",
+                                                        cursor: "pointer",
+                                                        border: "1px solid rgba(255,255,255,0.06)",
+                                                        transition: "background 0.15s ease"
+                                                    }}
+                                                    onMouseEnter={(e) => (e.currentTarget.style.background = "var(--surface-soft)")}
+                                                    onMouseLeave={(e) => (e.currentTarget.style.background = "var(--surface)")}
+                                                    title="Click to preview"
+                                                >
+                                                    <FileIcon size={20} color={color} />
+                                                    <div style={{ flex: 1, minWidth: 0 }}>
+                                                        <div style={{ fontWeight: "500", color: "var(--text-main)", fontSize: "0.9rem", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
+                                                            {f.originalName}
+                                                        </div>
+                                                        <div style={{ fontSize: "0.8rem", color: "var(--text-tertiary)", marginTop: "2px" }}>
+                                                            {f.mimeType || "Unknown type"}
+                                                        </div>
+                                                    </div>
+                                                    <div style={{ fontSize: "0.85rem", color: "var(--text-secondary)", fontWeight: "500", whiteSpace: "nowrap" }}>
+                                                        {formatSize(f.size)}
+                                                    </div>
+                                                    <Eye size={16} color="var(--primary)" style={{ opacity: 0.7 }} />
+                                                </div>
+                                            );
+                                        })}
+                                    </div>
+                                );
+                            })()}
+                        </div>
+
+                        {/* Footer with count */}
+                        <div style={{ marginTop: "16px", paddingTop: "12px", borderTop: "1px solid rgba(255,255,255,0.08)", fontSize: "0.85rem", color: "var(--text-tertiary)", textAlign: "center" }}>
+                            {viewingItem.importedFiles?.length || 0} file(s) total
                         </div>
                     </div>
                 </div>

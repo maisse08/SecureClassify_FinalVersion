@@ -59,4 +59,11 @@ router.delete(
     dataController.deleteData
 );
 
+// Preview an imported file from a dataset
+router.get(
+    "/:id/files/:filename",
+    authMiddleware,
+    dataController.previewFile
+);
+
 export default router;

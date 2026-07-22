@@ -1,4 +1,5 @@
 import { useState, useEffect } from "react";
+import { useNavigate } from "react-router-dom";
 import {
     Database, Share2, Trash2, ShieldAlert, BarChart3,
     AlertCircle, Loader2, FileText, Upload, CheckCircle
@@ -7,6 +8,7 @@ import { dashboardService } from "../../services/dashboard.service";
 import "./dashboard.css";
 
 export const UserDashboardPage = () => {
+    const navigate = useNavigate();
     const [data, setData] = useState<any>(null);
     const [loading, setLoading] = useState(true);
     const [error, setError] = useState("");
@@ -62,13 +64,17 @@ export const UserDashboardPage = () => {
 
     // User-specific stat cards (no admin-level info like users/departments/categories)
     const statCards = [
-        { icon: <Database size={20} />, value: totalDocs, label: "My Datasets", accent: "#3b82f6" },
-        { icon: <Upload size={20} />, value: importedDatasets, label: "My Imports", accent: "#8E24AA" },
-        { icon: <CheckCircle size={20} />, value: classifiedDatasets, label: "Classified", accent: "#28A745" },
-        { icon: <Share2 size={20} />, value: stats.shared?.sharedByMe || 0, label: "Shared by Me", accent: "#2dd4bf" },
-        { icon: <Share2 size={20} />, value: stats.shared?.sharedWithMe || 0, label: "Shared with Me", accent: "#00ACC1" },
-        { icon: <Trash2 size={20} />, value: stats.trashData || 0, label: "In Trash", accent: "#E53935" },
+        { icon: <Database size={20} />, value: totalDocs, label: "My Datasets", accent: "#3b82f6", path: "/data" },
+        { icon: <Upload size={20} />, value: importedDatasets, label: "My Imports", accent: "#8E24AA", path: "/cia-assessment?tab=imported" },
+        { icon: <CheckCircle size={20} />, value: classifiedDatasets, label: "Classified", accent: "#28A745", path: "/cia-assessment?tab=classified" },
+        { icon: <Share2 size={20} />, value: stats.shared?.sharedByMe || 0, label: "Shared by Me", accent: "#2dd4bf", path: "/sharing" },
+        { icon: <Share2 size={20} />, value: stats.shared?.sharedWithMe || 0, label: "Shared with Me", accent: "#00ACC1", path: "/sharing" },
+        { icon: <Trash2 size={20} />, value: stats.trashData || 0, label: "In Trash", accent: "#E53935", path: "/trash" },
     ];
+
+    const handleStatCardClick = (path: string) => {
+        navigate(path);
+    };
 
     const maxMonthlyCount = Math.max(1, ...monthlyUploads.map((m: any) => m.count));
 
@@ -86,7 +92,13 @@ export const UserDashboardPage = () => {
             {/* Statistics Cards Grid */}
             <div className="stats-grid">
                 {statCards.map((s, i) => (
-                    <div className="stat-card" key={i} style={{ ["--stat-accent" as any]: s.accent }}>
+                    <div
+                        className="stat-card clickable"
+                        key={i}
+                        style={{ ["--stat-accent" as any]: s.accent }}
+                        onClick={() => handleStatCardClick(s.path)}
+                        title={`Go to ${s.label}`}
+                    >
                         <div className="stat-icon">{s.icon}</div>
                         <div className="stat-value">{s.value}</div>
                         <div className="stat-label">{s.label}</div>

@@ -9,6 +9,7 @@ import { ROLES } from "../constants/roles";
 import { PERMISSIONS } from "../constants/permissions";
 import { IData } from "../interfaces/IData";
 import AppError from "../exceptions/AppError";
+import { authorizeDataAccess, authorizeDataManagement } from "../utils/authorization";
 
 class DataController {
     getAllData = asyncHandler(async (req: Request, res: Response) => {
@@ -110,44 +111,26 @@ class DataController {
             return res.status(401).json({ success: false, message: "Unauthorized" });
         }
 
-        if (requester.role === ROLES.ADMIN) {
-            return res.status(200).json({ success: true, data });
+        const authResult = await authorizeDataAccess(data, requester);
+        
+        if (!authResult.authorized) {
+            return res.status(403).json({ success: false, message: "Forbidden" });
         }
 
-        // Owner can access
-        if (data.proprietaire && data.proprietaire.toString() === requester.id) {
-            return res.status(200).json({ success: true, data });
-        }
-
-        // Check if data is shared with the user
-        const shares = await shareService.getSharesByReceiver(requester.id);
-        const activeShare = shares.find(
-            share => share.document.toString() === data._id.toString() &&
-                    share.status === "Active" &&
-                    share.expirationDate > new Date()
-        );
-
-        if (activeShare) {
-            // Add sharedBy info to the response
+        // If access granted via share, add sharedBy info
+        if (authResult.share) {
             const dataWithSharedBy = {
                 ...data,
                 sharedBy: {
-                    _id: activeShare.sender,
-                    firstName: activeShare.senderEmail ? activeShare.senderEmail.split('@')[0] : "Admin",
+                    _id: authResult.share.sender,
+                    firstName: authResult.share.senderEmail ? authResult.share.senderEmail.split('@')[0] : "Admin",
                     lastName: ""
                 }
             };
             return res.status(200).json({ success: true, data: dataWithSharedBy });
         }
 
-        // Check for general permission
-        const dbUser = await userRepository.findById(requester.id);
-        const permissions: string[] = dbUser?.permissions || [];
-        if (permissions.includes("data.view.others")) {
-            return res.status(200).json({ success: true, data });
-        }
-
-        return res.status(403).json({ success: false, message: "Forbidden" });
+        return res.status(200).json({ success: true, data });
     });
 
     getMyData = asyncHandler(async (req: Request, res: Response) => {
@@ -203,7 +186,12 @@ class DataController {
         const authReq = req as any;
         const existing = await dataService.getDataById(req.params.id as string);
 
-        await this.assertOwnDataOnly(existing, authReq.user);
+        // Owner, admin, delegate, or an active "Full Access" share can
+        // assign / modify the CIA assessment.
+        const authResult = await authorizeDataManagement(existing, authReq.user);
+        if (!authResult.authorized) {
+            throw new AppError("Forbidden: you do not have permission to manage this dataset", 403);
+        }
 
         let niveauCIA = req.body.niveauCIA ?? req.body;
         if (typeof niveauCIA === "string") {
@@ -232,7 +220,12 @@ class DataController {
         const authReq = req as any;
         const existing = await dataService.getDataById(req.params.id as string);
 
-        await this.assertOwnDataOnly(existing, authReq.user);
+        // Owner, admin, delegate, or an active "Full Access" share can
+        // calculate the global classification.
+        const authResult = await authorizeDataManagement(existing, authReq.user);
+        if (!authResult.authorized) {
+            throw new AppError("Forbidden: you do not have permission to manage this dataset", 403);
+        }
 
         const updated = await dataService.calculateGlobalClassification(req.params.id as string);
 
@@ -249,31 +242,6 @@ class DataController {
             data: updated,
         });
     });
-
-    // CIA assessment and classification are only ever performed on a user's
-    // own data (or by an admin / a delegate holding "manage other users'
-    // data"). Unlike updateData, a shared "Read & Write"/"Full Access"
-    // collaborator does NOT get to evaluate or classify someone else's data
-    // — that stays with the actual owner.
-    private assertOwnDataOnly = async (existing: IData, requester: any) => {
-        const isAdmin = requester.role === ROLES.ADMIN;
-        
-        // proprietaire can be either a raw ObjectId or a populated user object
-        const proprietaire = existing.proprietaire as any;
-        const ownerId = proprietaire
-            ? (typeof proprietaire === 'object' ? proprietaire._id?.toString() : proprietaire.toString())
-            : undefined;
-        
-        const isOwner = ownerId === requester.id;
-
-        if (isAdmin || isOwner) return;
-
-        const dbUser = await userRepository.findById(requester.id);
-        const permissions: string[] = dbUser?.permissions || [];
-        if (permissions.includes(PERMISSIONS.DATA_VIEW_OTHERS)) return;
-
-        throw new AppError("Forbidden: CIA assessment is only available for your own data", 403);
-    };
 
     // Shared write-access check used by updateData: admin, owner, an active
     // "Read & Write"/"Full Access" share, or the delegated "manage other
@@ -339,10 +307,12 @@ class DataController {
         const authReq = req as any;
         const existing = await dataService.getDataById(req.params.id as string);
 
-        // Deleting is reserved for the actual owner (or an admin / delegate
-        // acting on the owner's behalf) — a shared "Full Access" collaborator
-        // can modify or share, but cannot delete data they don't own.
-        await this.assertOwnDataOnly(existing, authReq.user);
+        // Owner, admin, delegate, or an active "Full Access" share can
+        // delete the dataset.
+        const authResult = await authorizeDataManagement(existing, authReq.user);
+        if (!authResult.authorized) {
+            throw new AppError("Forbidden: you do not have permission to manage this dataset", 403);
+        }
 
         const deleted = await dataService.deleteData(req.params.id as string, authReq.user.id);
 
@@ -391,6 +361,61 @@ class DataController {
         });
 
         res.status(200).json({ success: true, message: "Data restored successfully", data: restored });
+    });
+
+    // Preview an imported file from a dataset
+    previewFile = asyncHandler(async (req: Request, res: Response) => {
+        const authReq = req as any;
+        const requester = authReq.user;
+        const { id, filename } = req.params;
+        const isDownload = req.query.download === "true";
+
+        if (!requester) {
+            return res.status(401).json({ success: false, message: "Unauthorized" });
+        }
+
+        // Get the dataset
+        const data = await dataService.getDataById(id as string);
+        
+        // Check permissions using the same logic as getData
+        const authResult = await authorizeDataAccess(data, requester);
+        
+        if (!authResult.authorized) {
+            return res.status(403).json({ success: false, message: "Forbidden" });
+        }
+
+        // Find the file in the importedFiles array
+        const importedFile = data.importedFiles.find(f => f.filename === filename);
+        if (!importedFile) {
+            return res.status(404).json({ success: false, message: "File not found in dataset" });
+        }
+
+        // Construct the file path
+        const path = require("path");
+        const fs = require("fs");
+
+        const uploadDir = path.join(process.cwd(), "uploads");
+        const filePath = path.join(uploadDir, importedFile.filename);
+
+        // Check if file exists
+        if (!fs.existsSync(filePath)) {
+            return res.status(404).json({ success: false, message: "File not found on server" });
+        }
+
+        // Set appropriate headers
+        const mimeType = importedFile.mimeType || "application/octet-stream";
+        res.setHeader("Content-Type", mimeType);
+        
+        // Use attachment disposition for downloads, inline for previews
+        if (isDownload) {
+            res.setHeader("Content-Disposition", `attachment; filename="${importedFile.originalName}"`);
+        } else {
+            res.setHeader("Content-Disposition", `inline; filename="${importedFile.originalName}"`);
+        }
+        
+        // Stream the file
+        const fileStream = fs.createReadStream(filePath);
+        fileStream.pipe(res);
     });
 }
 
