@@ -83,7 +83,7 @@ export const TrashPage = () => {
                     <table>
                         <thead>
                             <tr>
-                                <th>Document Title</th>
+                                <th>Dataset Name</th>
                                 <th>Owner</th>
                                 <th>CIA Score</th>
                                 <th>File Attachment</th>

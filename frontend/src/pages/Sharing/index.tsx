@@ -77,13 +77,13 @@ export const SharingPage = () => {
     return (
         <div className="card">
             <div className="card-header">
-                <h3><Share2 size={22} /> Document Sharing Management</h3>
+                <h3><Share2 size={22} /> Data Sharing Management</h3>
             </div>
             <div className="table-container">
                 <table>
                     <thead>
                         <tr>
-                            <th>Document</th>
+                            <th>Dataset</th>
                             <th>Sender</th>
                             <th>Receiver</th>
                             <th>Permission Level</th>

@@ -85,7 +85,7 @@ export const HistoryPage = () => {
                             style={activeTab !== "actions" ? { background: "var(--surface-soft)", color: "var(--text-secondary)" } : {}}
                             onClick={() => setActiveTab("actions")}
                         >
-                            <FileText size={15} /> Document Actions
+                            <FileText size={15} /> Data Actions
                         </button>
                         <button
                             className={`btn btn-sm ${activeTab === "connections" ? "btn-primary" : ""}`}
@@ -193,7 +193,7 @@ export const HistoryPage = () => {
             {activeTab === "actions" && (
                 <div className="card">
                     <div className="card-header">
-                        <h4><FileText size={18} /> Document Action Logs ({filteredActions.length} records)</h4>
+                        <h4><FileText size={18} /> Data Action Logs ({filteredActions.length} records)</h4>
                     </div>
                     {!canViewAllHistory && filteredActions.length === 0 && (
                         <div className="alert alert-info" style={{ display: "flex", alignItems: "center", gap: 10 }}>
@@ -205,7 +205,7 @@ export const HistoryPage = () => {
                             <thead>
                                 <tr>
                                     <th>Action Type</th>
-                                    <th>Target Document</th>
+                                    <th>Target Dataset</th>
                                     <th>Details</th>
                                     <th>Performed By</th>
                                     <th>Date & Time</th>

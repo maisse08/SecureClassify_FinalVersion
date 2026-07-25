@@ -7,6 +7,7 @@ import { ROLES } from "../constants/roles";
 import { env } from "../config/env";
 import User from "../models/User";
 import AppError from "../exceptions/AppError";
+import mfaService from "./mfa.service";
 
 class AuthService {
 
@@ -50,6 +51,40 @@ if (!user.isActive) {
                 401
             );
 
+        }
+
+        // Generate and send MFA code
+        await mfaService.generateAndSendMfaCode(
+            user._id.toString(),
+            user.email,
+            undefined,
+            undefined
+        );
+
+        // Return MFA required response
+        return {
+            requiresMFA: true,
+            message: "A verification code has been sent to your email."
+        };
+
+    }
+
+    /**
+     * Complete login after MFA verification.
+     * Generates JWT token.
+     *
+     * @param userId - The user's ID
+     * @returns Object containing user data and JWT token
+     */
+    async completeMfaLogin(userId: string) {
+        const user = await userRepository.findById(userId);
+
+        if (!user) {
+            throw new AppError("User not found", 404);
+        }
+
+        if (!user.isActive) {
+            throw new AppError("This account has been deactivated", 403);
         }
 
         const token =

@@ -4,6 +4,8 @@ import { ProtectedRoute } from "../components/ProtectedRoute/ProtectedRoute";
 import { AdminLayout } from "../layouts/AdminLayout";
 import { UserLayout } from "../layouts/UserLayout";
 import { LoginPage } from "../pages/Login/LoginPage";
+import { ForgotPasswordPage } from "../pages/ForgotPassword/ForgotPasswordPage";
+import { ResetPasswordPage } from "../pages/ResetPassword/ResetPasswordPage";
 import { AdminDashboardPage } from "../pages/Dashboard/AdminDashboardPage";
 import { UserDashboardPage } from "../pages/Dashboard/UserDashboardPage";
 import { DataPage } from "../pages/Data/DataPage";
@@ -24,6 +26,8 @@ export const AppRoutes = () => {
     return (
         <Routes>
             <Route path="/login" element={<LoginPage />} />
+            <Route path="/forgot-password" element={<ForgotPasswordPage />} />
+            <Route path="/reset-password/:token" element={<ResetPasswordPage />} />
 
             <Route
                 path="/"

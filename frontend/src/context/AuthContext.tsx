@@ -6,7 +6,8 @@ interface AuthContextType {
     user: IUser | null;
     token: string | null;
     loading: boolean;
-    login: (email: string, password: string) => Promise<void>;
+    login: (email: string, password: string) => Promise<{ requiresMFA?: boolean }>;
+    verifyMFA: (code: string) => Promise<void>;
     logout: () => Promise<void>;
     isAdmin: boolean;
 }
@@ -17,6 +18,7 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
     const [user, setUser] = useState<IUser | null>(null);
     const [token, setToken] = useState<string | null>(null);
     const [loading, setLoading] = useState(true);
+    const [tempCredentials, setTempCredentials] = useState<{ email: string; password: string } | null>(null);
 
     useEffect(() => {
         const savedToken = localStorage.getItem("token");
@@ -30,11 +32,32 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
 
     const login = async (email: string, password: string) => {
         const res = await authService.login(email, password);
+        
+        if (res.data.requiresMFA) {
+            setTempCredentials({ email, password });
+            return { requiresMFA: true };
+        }
+        
         const { token: newToken, user: userData } = res.data;
         localStorage.setItem("token", newToken);
         localStorage.setItem("user", JSON.stringify(userData));
         setToken(newToken);
         setUser(userData);
+        return {};
+    };
+
+    const verifyMFA = async (code: string) => {
+        if (!tempCredentials) {
+            throw new Error("No pending MFA verification");
+        }
+        
+        const res = await authService.verifyMFA(tempCredentials.email, code);
+        const { token: newToken, user: userData } = res.data;
+        localStorage.setItem("token", newToken);
+        localStorage.setItem("user", JSON.stringify(userData));
+        setToken(newToken);
+        setUser(userData);
+        setTempCredentials(null);
     };
 
     const logout = async () => {
@@ -47,12 +70,13 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
         localStorage.removeItem("user");
         setToken(null);
         setUser(null);
+        setTempCredentials(null);
     };
 
     const isAdmin = user?.role === "ADMIN";
 
     return (
-        <AuthContext.Provider value={{ user, token, loading, login, logout, isAdmin }}>
+        <AuthContext.Provider value={{ user, token, loading, login, verifyMFA, logout, isAdmin }}>
             {children}
         </AuthContext.Provider>
     );

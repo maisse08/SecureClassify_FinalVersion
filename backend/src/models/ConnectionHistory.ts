@@ -19,7 +19,15 @@ const connectionHistorySchema = new Schema<IConnectionHistory>(
         },
         action: {
             type: String,
-            enum: ["login", "logout", "failed_login"],
+            enum: [
+                "login",
+                "logout",
+                "failed_login",
+                "mfa_verification_successful",
+                "mfa_verification_failed",
+                "mfa_code_resent",
+                "mfa_resend_failed"
+            ],
             required: true,
         },
         success: {

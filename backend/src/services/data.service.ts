@@ -127,22 +127,17 @@ class DataService {
             typeof niveauCIA.confidentialite !== "number" ||
             typeof niveauCIA.integrite !== "number" ||
             typeof niveauCIA.disponibilite !== "number"
-        ) {
-            throw new AppError("CIA must be assigned before calculating the global classification", 400);
-        }
+        ) 
+        {    throw new AppError("CIA must be assigned before calculating the global classification", 400);}
 
         const cia = calculateCIA({
-            confidentialite: niveauCIA.confidentialite,
-            integrite: niveauCIA.integrite,
-            disponibilite: niveauCIA.disponibilite,
-            methodeCalcul: niveauCIA.methodeCalcul || "MAX",
+            confidentialite: niveauCIA.confidentialite, integrite: niveauCIA.integrite,
+            disponibilite: niveauCIA.disponibilite, methodeCalcul: niveauCIA.methodeCalcul || "MAX",
         });
 
         const updated = await dataRepository.updateClassification(id, cia.niveauGlobal, cia.classification, cia.protectionRequired);
 
-        if (!updated) {
-            throw new AppError("Data not found", 404);
-        }
+        if (!updated) {  throw new AppError("Data not found", 404); }
 
         return updated;
     }

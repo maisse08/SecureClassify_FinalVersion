@@ -19,38 +19,20 @@ export const authMiddleware = (
 
         const authHeader = req.headers.authorization;
         console.log(req.headers.authorization);
-
         if (!authHeader) {
             return res.status(401).json({
-                success: false,
-                message: "No token provided"
-            });
+                success: false, message: "No token provided" });
         }
-
-
         const token = authHeader.split(" ")[1];
-
-
         if (!token) {
             return res.status(401).json({
                 success: false,
                 message: "Invalid token format"
             });
         }
-
-
         const decoded = jwt.verify(
-            token,
-            env.JWT_SECRET
-        ) as {
-            id: string;
-            role: string;
-        };
-
-
+            token, env.JWT_SECRET ) as { id: string; role: string; };
         req.user = decoded;
-
-
         next();
 
 

@@ -53,38 +53,25 @@ const importedFileSchema = new Schema(
 const dataSchema = new Schema<IData>(
     {
         titre: {
-            type: String,
-            required: true,
-            trim: true,
+            type: String, required: true, trim: true,
         },
         description: {
-            type: String,
-            trim: true,
+            type: String, trim: true,
         },
         categorie: {
-            type: Schema.Types.ObjectId,
-            ref: "Category",
-            required: true,
+            type: Schema.Types.ObjectId, ref: "Category", required: true,
         },
         type: {
-            type: Schema.Types.ObjectId,
-            ref: "DataType",
-            required: false,
+            type: Schema.Types.ObjectId, ref: "DataType", required: false,
         },
         departement: {
-            type: Schema.Types.ObjectId,
-            ref: "Department",
-            required: false,
+            type: Schema.Types.ObjectId, ref: "Department", required: false,
         },
         proprietaire: {
-            type: Schema.Types.ObjectId,
-            ref: "User",
-            required: true,
+            type: Schema.Types.ObjectId, ref: "User", required: true,
         },
         niveauCIA: {
-            type: niveauCIASchema,
-            required: false,
-            default: undefined,
+            type: niveauCIASchema, required: false, default: undefined,
         },
         pieceJointe: {
             type: String,
